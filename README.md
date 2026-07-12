@@ -212,7 +212,7 @@ npx playwright show-report
 
 ## Author
 
-**Antonios Gerges Eskandar**
+**Antonios Gerges Hakim Eskandar**
 
 Senior QA Engineer
 
