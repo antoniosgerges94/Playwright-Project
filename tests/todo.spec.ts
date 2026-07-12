@@ -1,5 +1,6 @@
 
 import { test, expect } from '@playwright/test';
+import { faker } from '@faker-js/faker'; // ✅ Import Faker
 import User from '../models/User';
 import UserApi from '../apis/UserApi';
 import TodoPage from '../pages/TodoPage';
@@ -11,15 +12,29 @@ test.describe('Todo App', () => {
   let user: User;
 
   test.beforeEach(async ({ page, request, context }) => {
-    // 1. Register via API (fast and reliable)
-    user = User.random();
+    // 1. Generate unique user data with Faker
+    const firstName = faker.person.firstName();
+    const lastName = faker.person.lastName();
+    const email = faker.internet.email({ firstName, lastName });
+    const password = faker.internet.password({ length: 10 });
+
+    // Create user instance (adjust constructor if needed)
+    // If User expects { firstName, lastName, email, password }:
+    user = new User({ firstName, lastName, email, password });
+    // If User uses setters instead:
+    // user = new User();
+    // user.setFirstName(firstName);
+    // user.setLastName(lastName);
+    // user.setEmail(email);
+    // user.setPassword(password);
+
+    // 2. Register via API
     const userApi = new UserApi(request);
     await userApi.register(user);
 
-    // 2. Set cookies with multiple key names
+    // 3. Set cookies (unchanged)
     const token = user.getAccessToken();
     const userId = user.getUserId();
-    const firstName = user.getFirstName();
 
     const cookieNames = ['access_token', 'token', 'jwt', 'auth_token'];
     for (const name of cookieNames) {
@@ -36,7 +51,6 @@ test.describe('Todo App', () => {
         },
       ]);
     }
-    // Also set userID and firstName cookies if needed
     await context.addCookies([
       {
         name: 'userID',
@@ -60,20 +74,16 @@ test.describe('Todo App', () => {
       },
     ]);
 
-    // 3. Set localStorage with multiple keys
+    // 4. Set localStorage (fixed to use actual userId and firstName)
     await page.goto(BASE_URL);
-    await page.evaluate((token) => {
+    await page.evaluate(({ token, userId, firstName }) => {
       const keys = ['access_token', 'token', 'jwt', 'auth_token'];
       keys.forEach(key => localStorage.setItem(key, token));
-      // Also set userID and firstName in localStorage if needed
-      localStorage.setItem('userID', '{{userId}}');
-      localStorage.setItem('firstName', '{{firstName}}');
-    }, token);
+      localStorage.setItem('userID', userId);
+      localStorage.setItem('firstName', firstName);
+    }, { token, userId, firstName });
 
-    // Wait a moment for storage to settle
-    await page.waitForTimeout(1000);
-
-    // 4. Now navigate to the todo page (skip UI login)
+    await page.waitForTimeout(1000); // Wait for storage to settle
   });
 
   test('should add a todo', async ({ page }) => {
